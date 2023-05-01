@@ -4,9 +4,9 @@ import { TRPCError } from "@trpc/server";
 import { conn, knexInstance, type User } from "~/utils/db";
 import bcrypt from "bcrypt";
 import jwt from 'jsonwebtoken'
+import { env } from '~/env.mjs'
 
 const SALT_ROUNDS = 10;
-const SECRET = 'secret'
 
 export const userRouter = createTRPCRouter({
   exsists: publicProcedure
@@ -50,11 +50,11 @@ export const userRouter = createTRPCRouter({
         });
       }
 
-      const token = jwt.sign({ userId: user.id }, SECRET, { expiresIn: '1d' })
+      const token = jwt.sign({ userId: user.id }, env.JWS_SECRET, { expiresIn: '1d' })
 
       ctx.res.setHeader(
         "Set-Cookie",
-        `authToken=${token}; Path=/; HttpOnly; SameSite=Strict`
+        `authToken=${token}; Path=/; HttpOnly; HttpOnly; SameSite=Strict`
       );
 
       return true;
@@ -84,11 +84,11 @@ export const userRouter = createTRPCRouter({
 
       const userId = users.insertId;
 
-      const token = jwt.sign({ userId }, SECRET, { expiresIn: '1d' })
+      const token = jwt.sign({ userId }, env.JWS_SECRET, { expiresIn: '1d' })
 
       ctx.res.setHeader(
         "Set-Cookie",
-        `authToken=${token}; Path=/; HttpOnly; SameSite=Strict`
+        `authToken=${token}; Path=/; Secure; HttpOnly; SameSite=Strict`
       );
 
       return true;

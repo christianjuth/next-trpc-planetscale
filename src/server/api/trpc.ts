@@ -1,6 +1,7 @@
 import { conn, knexInstance, type User } from "~/utils/db";
 import qs from 'querystring';
 import jwt from 'jsonwebtoken'
+import { env } from '~/env.mjs'
 
 /**
  * YOU PROBABLY DON'T NEED TO EDIT THIS FILE, UNLESS:
@@ -49,7 +50,6 @@ const createInnerTRPCContext = ({ user, req, res }: CreateContextOptions) => {
  *
  * @see https://trpc.io/docs/context
  */
-const SECRET = 'secret'
 export const createTRPCContext = async ({ req, res }: CreateNextContextOptions) => {
   const cookies = qs.decode(req.headers.cookie ?? '')
   const { authToken } = cookies
@@ -57,7 +57,7 @@ export const createTRPCContext = async ({ req, res }: CreateNextContextOptions) 
   let user: User | null = null
 
   if (typeof authToken === 'string') {
-    const token = cookies.authToken ? jwt.verify(authToken, SECRET) : null
+    const token = cookies.authToken ? jwt.verify(authToken, env.JWS_SECRET) : null
 
     if (typeof token === 'object' && token !== null && typeof token['userId'] === 'string') {
       const data = await conn.execute(
