@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "~/utils/api";
 import { useForm, Form, Input } from "~/components/Form";
 import { TRPCClientError, type TRPCClientErrorLike } from "@trpc/client";
@@ -52,7 +52,7 @@ const Page = () => {
             password: data.password ?? "",
             first_name: data.first_name ?? "",
             last_name: data.last_name ?? "",
-          });
+          })
           break;
       }
     },
@@ -82,9 +82,9 @@ const Page = () => {
     showError(register.error);
   }
 
-  const router = useRouter()
-  if (register.isSuccess || login.isSuccess) {
-    router.push('/')
+  if (register.isSuccess || login.isSuccess && typeof window !== "undefined") {
+    // Force the entire site to reload after login
+    window.location.href = "/";
   }
 
   return (

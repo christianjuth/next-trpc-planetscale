@@ -9,7 +9,7 @@ const config = {
   reactStrictMode: true,
 
   experimental: {
-    appDir: true,
+    appDir: true
   },
 
   /**
