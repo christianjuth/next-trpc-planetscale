@@ -1,5 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { api } from "~/utils/api";
 
 const Page = () => {
@@ -7,8 +8,10 @@ const Page = () => {
   const user = api.users.getUser.useQuery(undefined, { retry: false });
   const logout = api.users.logout.useMutation();
 
-  if (user.isError) {
+  const [redirecting, setRedirection] = useState(false)
+  if (user.isError && !redirecting) {
     router.push("/auth");
+    setRedirection(true)
   }
 
   if (logout.isSuccess) {

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
-import { conn, knexInstance, type User } from "~/utils/db";
+import { conn, type User } from "~/utils/db";
 import bcrypt from "bcrypt";
 import jwt from 'jsonwebtoken'
 import { env } from '~/env.mjs'
@@ -13,7 +13,8 @@ export const userRouter = createTRPCRouter({
     .input(z.object({ email: z.string() }))
     .query(async ({ input }) => {
       const users = await conn.execute(
-        knexInstance("users").where("email", input.email).limit(1).toString()
+        'SELECT * FROM users WHERE email = :email LIMIT 1',
+        { email: input.email },
       );
       return users.rows.length > 0;
     }),
@@ -30,7 +31,8 @@ export const userRouter = createTRPCRouter({
     .input(z.object({ email: z.string(), password: z.string() }))
     .mutation(async ({ input, ctx }) => {
       const users = await conn.execute(
-        knexInstance("users").where("email", input.email).limit(1).toString()
+        'SELECT * FROM users WHERE email = :email LIMIT 1',
+        { email: input.email }
       );
 
       if (users.rows.length === 0) {
@@ -52,7 +54,7 @@ export const userRouter = createTRPCRouter({
 
       const token = jwt.sign({ userId: user.id }, env.JWS_SECRET, { expiresIn: '1d' })
 
-      ctx.res.setHeader(
+      ctx.res?.setHeader(
         "Set-Cookie",
         `authToken=${token}; Path=/; HttpOnly; HttpOnly; SameSite=Strict`
       );
@@ -72,21 +74,20 @@ export const userRouter = createTRPCRouter({
       const hash = bcrypt.hashSync(input.password, SALT_ROUNDS);
 
       const users = await conn.execute(
-        knexInstance("users")
-          .insert({
-            first_name: input.first_name,
-            last_name: input.last_name,
-            email: input.email,
-            hashed_password: hash,
-          })
-          .toString()
+        'INSERT INTO users (first_name, last_name, email, hashed_password) VALUES (:first_name, :last_name, :email, :hashed_password)',
+        {
+          first_name: input.first_name,
+          last_name: input.last_name,
+          email: input.email,
+          hashed_password: hash,
+        }
       );
 
       const userId = users.insertId;
 
       const token = jwt.sign({ userId }, env.JWS_SECRET, { expiresIn: '1d' })
 
-      ctx.res.setHeader(
+      ctx.res?.setHeader(
         "Set-Cookie",
         `authToken=${token}; Path=/; Secure; HttpOnly; SameSite=Strict`
       );
@@ -95,11 +96,15 @@ export const userRouter = createTRPCRouter({
     }),
   logout: protectedProcedure
     .mutation(({ ctx }) => {
-      ctx.res.setHeader(
+      ctx.res?.setHeader(
         "Set-Cookie",
         `authToken=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`
       );
 
       return true;
+    }),
+  test: publicProcedure
+    .query(() => {
+      return 'Testing';
     })
 });

@@ -1,7 +1,6 @@
-import { conn, knexInstance, type User } from "~/utils/db";
-import qs from 'querystring';
-import jwt from 'jsonwebtoken'
-import { env } from '~/env.mjs'
+import { conn, type User } from "~/utils/db";
+import jwt from "jsonwebtoken";
+import { env } from "~/env.mjs";
 
 /**
  * YOU PROBABLY DON'T NEED TO EDIT THIS FILE, UNLESS:
@@ -22,8 +21,8 @@ import { env } from '~/env.mjs'
 import { type CreateNextContextOptions } from "@trpc/server/adapters/next";
 
 /** Replace this with an object if you want to pass things to `createContextInner`. */
-interface CreateContextOptions extends CreateNextContextOptions {
-  user: null | User
+interface CreateContextOptions extends Partial<CreateNextContextOptions> {
+  user: null | User;
 }
 
 /**
@@ -40,7 +39,7 @@ const createInnerTRPCContext = ({ user, req, res }: CreateContextOptions) => {
   return {
     user,
     req,
-    res
+    res,
   };
 };
 
@@ -50,21 +49,31 @@ const createInnerTRPCContext = ({ user, req, res }: CreateContextOptions) => {
  *
  * @see https://trpc.io/docs/context
  */
-export const createTRPCContext = async ({ req, res }: CreateNextContextOptions) => {
-  const cookies = qs.decode(req.headers.cookie ?? '')
-  const { authToken } = cookies
+export const createTRPCContext = async ({
+  req,
+  res,
+}: CreateNextContextOptions) => {
+  const params = new URLSearchParams(req.headers.cookie ?? "")
+  const authToken = params.get('authToken')
+  
+  let user: User | null = null;
 
-  let user: User | null = null
+  if (typeof authToken === "string") {
+    const parsedToken = authToken
+      ? jwt.verify(authToken, env.JWS_SECRET)
+      : null;
 
-  if (typeof authToken === 'string') {
-    const token = cookies.authToken ? jwt.verify(authToken, env.JWS_SECRET) : null
-
-    if (typeof token === 'object' && token !== null && typeof token['userId'] === 'string') {
+    if (
+      typeof parsedToken === "object" &&
+      parsedToken !== null &&
+      typeof parsedToken["userId"] === "string"
+    ) {
       const data = await conn.execute(
-        knexInstance("users").where("id", token.userId).limit(1).toString()
+        'SELECT * FROM users WHERE id = :id LIMIT 1',
+        { id: parsedToken.userId }
       );
       if (data.rows.length > 0) {
-        user = data.rows[0] as User
+        user = data.rows[0] as User;
       }
     }
   }
@@ -72,7 +81,7 @@ export const createTRPCContext = async ({ req, res }: CreateNextContextOptions) 
   return createInnerTRPCContext({
     user,
     req,
-    res
+    res,
   });
 };
 
@@ -125,10 +134,11 @@ export const createTRPCRouter = t.router;
 export const publicProcedure = t.procedure;
 
 /** Reusable middleware that enforces users are logged in before running the procedure. */
-const enforceUserIsAuthed = t.middleware(({ ctx, next }) => {
+const enforceUserIsAuthed = t.middleware(async ({ ctx, next }) => {
   if (!ctx.user) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
+
   return next({
     ctx: {
       // infers the `session` as non-nullable
@@ -146,4 +156,3 @@ const enforceUserIsAuthed = t.middleware(({ ctx, next }) => {
  * @see https://trpc.io/docs/procedures
  */
 export const protectedProcedure = t.procedure.use(enforceUserIsAuthed);
-
